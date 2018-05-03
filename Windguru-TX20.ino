@@ -276,7 +276,7 @@ void loop() {
     url += wind_min * 1.943844;
     url += "&wind_max=";
     url += wind_max * 1.943844;
-    url += "&wind_dir=";
+    url += "&wind_direction=";
     url += wind_dir;
 
     #ifdef DEBUG
