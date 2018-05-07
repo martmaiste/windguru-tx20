@@ -11,10 +11,10 @@
  *  OLED connected to default I2C pins
  *  
  *  TX20 RJ11 -> ESP PIN
- *  Brown TxD -> Any Digital pin (in code DATAPIN)
- *  Red Vcc -> 3.3V
- *  Green DTR -> Ground
- *  Yellow GND -> Ground
+ *  Brown  - DATA (D3)
+ *  Red    - 3.3V
+ *  Green  - DTR (D4)
+ *  Yellow - Ground
  *
 */
 
@@ -26,9 +26,10 @@
 #include <U8g2lib.h>
 #include "Secrets.h"
 
-#define DATAPIN D3                    // TX20 digital data pin (brown)
+#define DATA D3            // TX20 DATA pin (brown)
+#define DTR D4             // TX20 DTR pin (green)
 #define DEBUG 1
-#define OLED 1                        // OLED is connected
+#define OLED 1             // OLED is connected
 
 // define your credentials in Secrets.h
 /*
@@ -100,8 +101,8 @@ void isTX20Rising() {
 }
 
 void setup() {
-  pinMode(DATAPIN, INPUT);
-  attachInterrupt(digitalPinToInterrupt(DATAPIN), isTX20Rising, RISING);
+  pinMode(DATA, INPUT);
+  attachInterrupt(digitalPinToInterrupt(DATA), isTX20Rising, RISING);
   
   Serial.begin(115200);
   Serial.println("TX20 ESP8266 Windguru");
@@ -143,7 +144,11 @@ void setup() {
   
   u8g2.sendBuffer();
   u8g2.clearBuffer();
-  #endif  
+  #endif
+
+  pinMode(DTR, OUTPUT);     // ready to receive wind sensor data
+  digitalWrite(DTR, LOW);
+  
   interval_count = millis(); 
 }
 
@@ -159,7 +164,7 @@ boolean readTX20() {
     String tx20RawDataS = "";
 
     for (bitcount=41; bitcount>0; bitcount--) {
-      pin = (digitalRead(DATAPIN));
+      pin = (digitalRead(DATA));
       if (!pin) {
         tx20RawDataS += "1";      
       } else {
