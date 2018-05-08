@@ -1,4 +1,4 @@
-/* 
+atus/* 
  *  Technoline TX20 Wind Sensor on ESP8266 for sending the wind data to Windguru
  *  Supports OLED display
  *  
@@ -10,11 +10,13 @@
  *  
  *  OLED connected to default I2C pins
  *  
+ *  For self reset feature connect RST to D0
+ *  
  *  TX20 RJ11 -> ESP PIN
- *  Brown  - DATA (D3)
- *  Red    - 3.3V
- *  Green  - DTR (D4)
- *  Yellow - Ground
+ *  Brown TxD -> DATAPIN (D3)
+ *  Red Vcc -> 3.3V
+ *  Green DTR -> DTRPIN (D4)
+ *  Yellow GND -> Ground
  *
 */
 
@@ -26,10 +28,10 @@
 #include <U8g2lib.h>
 #include "Secrets.h"
 
-#define DATA D3            // TX20 DATA pin (brown)
-#define DTR D4             // TX20 DTR pin (green)
+#define DATAPIN D3                    // TX20 DATA pin (brown)
+#define DTRPIN D4                     // TX20 DTR pin (green)
 #define DEBUG 1
-#define OLED 1             // OLED is connected
+#define OLED 1                        // OLED is connected
 
 // define your credentials in Secrets.h
 /*
@@ -47,22 +49,10 @@ const unsigned long interval = 60000; // calculate wind speed and direction aver
 unsigned long interval_count;         // interval counter
 
 char* dir[] = {                       // human readable wind directions are only shown on the OLED
-  "N",
-  "NNE",
-  "NE",
-  "ENE",
-  "E",
-  "ESE",
-  "SE",
-  "SSE",
-  "S",
-  "SSW",
-  "SW",
-  "WSW",
-  "W",
-  "WNW",
-  "NW",
-  "NNW",
+  "N",  "NNE",  "NE",  "ENE",
+  "E",  "ESE",  "SE",  "SSE",
+  "S",  "SSW",  "SW",  "WSW",
+  "W",  "WNW",  "NW",  "NNW",
 };
 
                     // wind speed is stored and calculated in m/s
@@ -101,8 +91,9 @@ void isTX20Rising() {
 }
 
 void setup() {
-  pinMode(DATA, INPUT);
-  attachInterrupt(digitalPinToInterrupt(DATA), isTX20Rising, RISING);
+  pinMode(DATAPIN, INPUT);
+  pinMode(DTRPIN, OUTPUT);
+  attachInterrupt(digitalPinToInterrupt(DATAPIN), isTX20Rising, RISING);
   
   Serial.begin(115200);
   Serial.println("TX20 ESP8266 Windguru");
@@ -146,8 +137,7 @@ void setup() {
   u8g2.clearBuffer();
   #endif
 
-  pinMode(DTR, OUTPUT);     // ready to receive wind sensor data
-  digitalWrite(DTR, LOW);
+  digitalWrite(DTRPIN, LOW);
   
   interval_count = millis(); 
 }
@@ -164,7 +154,7 @@ boolean readTX20() {
     String tx20RawDataS = "";
 
     for (bitcount=41; bitcount>0; bitcount--) {
-      pin = (digitalRead(DATA));
+      pin = (digitalRead(DATAPIN));
       if (!pin) {
         tx20RawDataS += "1";      
       } else {
@@ -269,20 +259,13 @@ void loop() {
     ntp.update();
     long epoch = ntp.getEpochTime();
 
-    String url = "/upload/api.php?uid=";
-    url += uid;
-    url += "&salt=";
-    url += epoch;
-    url += "&hash=";
-    url += md5(String(epoch)+String(uid)+String(apipass));
-    url += "&wind_avg=";
-    url += wind_avg * 1.943844;
-    url += "&wind_min=";
-    url += wind_min * 1.943844;
-    url += "&wind_max=";
-    url += wind_max * 1.943844;
-    url += "&wind_direction=";
-    url += wind_dir;
+    String url = "/upload/api.php?uid=" + String(uid);
+    url += "&salt="             + String(epoch);
+    url += "&hash="             + md5(String(epoch)+String(uid)+String(apipass));
+    url += "&wind_avg="         + String(wind_avg * 1.943844);
+    url += "&wind_min="         + String(wind_min * 1.943844);
+    url += "&wind_max="         + String(wind_max * 1.943844);
+    url += "&wind_direction="   + String(wind_dir);
 
     #ifdef DEBUG
     Serial.println(url);
@@ -315,7 +298,7 @@ void loop() {
     // reset the data used for averaging
     wind_num = 0;
     wind_sum = 0;
-    wind_max = wind_avg;
+    wind_max = 0;
     
     dir_num  = 0;
     dir_sum  = 0;
