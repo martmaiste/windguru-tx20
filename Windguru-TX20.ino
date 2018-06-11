@@ -83,8 +83,6 @@ WiFiUDP ntpUDP;      // epoch received from NTP is used for Windguru API salt
 NTPClient ntp(ntpUDP, "europe.pool.ntp.org", 7200, 60000);
 long salt;
 
-WiFiClient client;
-
 MD5Builder _md5;     // Windguru API requires some MD5 hashing
 String md5(String str) {
   _md5.begin();
@@ -103,8 +101,6 @@ void setup() {
   Serial.begin(115200);
   delay(10);
   Serial.println("\nTX20 ESP8266 Windguru");
-
-  client.setTimeout(5000);
 
   pinMode(DATAPIN, INPUT);
   pinMode(DTRPIN, OUTPUT);
@@ -339,22 +335,43 @@ void loop() {
       #endif
       
       ok = false;
-      
-      if (client.connect(host, 80)) {
-        client.print(String("GET ") + url + " HTTP/1.1\r\n" +
-                   "Host: " + host + "\r\n" + 
-                   "Connection: close\r\n\r\n");
-        delay(500);
 
-        while(client.available()) {
-          String line = client.readStringUntil('\n');
-          #ifdef DEBUG
-          Serial.println(line);
+      WiFiClient client;
+      client.setTimeout(5000);
+      
+      if (!client.connect(host, 80)) {
+        Serial.println("FAIL");
+        #ifdef OLED
+        u8g2.print("FAIL");
+        u8g2.sendBuffer();
+        #endif
+        client.stop();
+        return;
+      }
+      
+      client.print(String("GET ") + url + " HTTP/1.1\r\n" + "Host: " + host + "\r\n" + "Connection: close\r\n\r\n");
+
+      unsigned long timeout = millis();
+      while (client.available() == 0) {
+        if (millis() - timeout > 5000) {
+          Serial.println("TIMEOUT");
+          #ifdef OLED
+          u8g2.print("TIMEOUT");
+          u8g2.sendBuffer();
           #endif
-          if (line.startsWith("OK")) ok = true;
+          client.stop();
+          return;
         }
       }
-  
+
+      while(client.available()) {
+        String line = client.readStringUntil('\n');
+        #ifdef DEBUG
+        Serial.println(line);
+        #endif
+        if (line.startsWith("OK")) ok = true;
+      }
+           
       if (ok) {
         Serial.println("OK");
         #ifdef OLED
@@ -363,10 +380,10 @@ void loop() {
         #endif
       } else {
         #ifdef DEBUG
-        Serial.println("FAIL");
+        Serial.println("ERROR");
         #endif
         #ifdef OLED
-        u8g2.print("FAIL");
+        u8g2.print("ERROR");
         u8g2.sendBuffer();
         #endif
       }
