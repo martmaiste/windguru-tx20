@@ -346,49 +346,48 @@ void loop() {
         u8g2.sendBuffer();
         #endif
         client.stop();
-        return;
-      }
-      
-      client.print(String("GET ") + url + " HTTP/1.1\r\n" + "Host: " + host + "\r\n" + "Connection: close\r\n\r\n");
-
-      unsigned long timeout = millis();
-      while (client.available() == 0) {
-        if (millis() - timeout > 5000) {
-          Serial.println("TIMEOUT");
+      } else {
+        client.print(String("GET ") + url + " HTTP/1.1\r\n" + "Host: " + host + "\r\n" + "Connection: close\r\n\r\n");
+  
+        unsigned long timeout = millis();
+        while (client.available() == 0) {
+          if (millis() - timeout > 5000) {
+            Serial.println("TIMEOUT");
+            #ifdef OLED
+            u8g2.print("TIMEOUT");
+            u8g2.sendBuffer();
+            #endif
+            client.stop();
+            return;
+          }
+        }
+  
+        while(client.available()) {
+          String line = client.readStringUntil('\n');
+          #ifdef DEBUG
+          Serial.println(line);
+          #endif
+          if (line.startsWith("OK")) ok = true;
+        }
+             
+        if (ok) {
+          Serial.println("OK");
           #ifdef OLED
-          u8g2.print("TIMEOUT");
+          u8g2.print("OK");
           u8g2.sendBuffer();
           #endif
-          client.stop();
-          return;
+        } else {
+          #ifdef DEBUG
+          Serial.println("ERROR");
+          #endif
+          #ifdef OLED
+          u8g2.print("ERROR");
+          u8g2.sendBuffer();
+          #endif
         }
       }
-
-      while(client.available()) {
-        String line = client.readStringUntil('\n');
-        #ifdef DEBUG
-        Serial.println(line);
-        #endif
-        if (line.startsWith("OK")) ok = true;
-      }
-           
-      if (ok) {
-        Serial.println("OK");
-        #ifdef OLED
-        u8g2.print("OK");
-        u8g2.sendBuffer();
-        #endif
-      } else {
-        #ifdef DEBUG
-        Serial.println("ERROR");
-        #endif
-        #ifdef OLED
-        u8g2.print("ERROR");
-        u8g2.sendBuffer();
-        #endif
-      }
     }
-
+    
     // reset the data used for averaging
     wind_num = 0;
     wind_sum = 0;
