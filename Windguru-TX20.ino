@@ -308,6 +308,7 @@ void loop() {
     } else {
 
       // reconnect to wifi if needed
+      WiFi.begin(ssid, pass);
       wifi_count = millis();
       while ((WiFi.status() != WL_CONNECTED) && (millis() - wifi_timeout >= wifi_count)) {
         delay(500);
